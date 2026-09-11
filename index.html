@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Расписание занятий — неделя</title>
+<style>
+  /* ============ БАЗОВЫЕ СТИЛИ ============ */
+  :root{
+    --bg: #f7f9fc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --muted: #64748b;
+    --accent: #2563eb;
+    --accent-soft: #dbeafe;
+    --even: #ecfdf5;
+    --odd: #fef3c7;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+    padding: 24px 16px 48px;
+  }
+  header{
+    max-width: 1200px;
+    margin: 0 auto 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  h1{
+    font-size: 1.5rem;
+    margin: 0;
+    font-weight: 700;
+  }
+  .meta{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .badge{
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: .85rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .badge.week{
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: #bfdbfe;
+  }
+  .badge.even{ background: var(--even); color: #047857; border-color: #a7f3d0; }
+  .badge.odd { background: var(--odd);  color: #b45309; border-color: #fde68a; }
+  button{
+    font: inherit;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: .15s;
+  }
+  button:hover{ background: #f1f5f9; }
+
+  /* ============ СЕТКА КАЛЕНДАРЯ ============ */
+  .calendar-wrapper{
+    max-width: 1200px;
+    margin: 0 auto;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .calendar{
+    display: grid;
+    /* 1 колонка под время + 7 дней */
+    grid-template-columns: 90px repeat(7, minmax(140px, 1fr));
+    min-width: 900px;
+  }
+  .calendar > div{
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 8px;
+    min-height: 92px;
+  }
+  .calendar > div:nth-child(8n){ border-right: none; } /* последняя колонка */
+
+  /* Заголовки */
+  .head{
+    background: #f1f5f9;
+    font-weight: 700;
+    text-align: center;
+    font-size: .9rem;
+    min-height: auto;
+    padding: 10px 6px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .head.today{
+    background: var(--accent);
+    color: #fff;
+  }
+  .head .date{
+    display: block;
+    font-weight: 400;
+    font-size: .78rem;
+    opacity: .85;
+  }
+
+  /* Колонка с временем пары */
+  .time-cell{
+    background: #f8fafc;
+    font-size: .8rem;
+    color: var(--muted);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    font-weight: 600;
+  }
+  .time-cell .pair-num{
+    color: var(--text);
+    font-size: .95rem;
+  }
+
+  /* Ячейка занятия */
+  .lesson{
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .lesson .title{
+    font-weight: 600;
+    font-size: .88rem;
+  }
+  .lesson .teacher{
+    font-size: .8rem;
+    color: var(--muted);
+  }
+  .lesson a{
+    margin-top: auto;
+    font-size: .8rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    align-self: flex-start;
+    border-bottom: 1px dashed var(--accent);
+  }
+  .lesson a:hover{ color: #1d4ed8; border-bottom-style: solid; }
+
+  .empty{ background: #fbfdff; }
+  .note{
+    font-size: .8rem;
+    color: var(--muted);
+    background: #fefce8;
+    border-left: 3px solid #facc15;
+    padding: 6px 8px;
+    border-radius: 4px;
+  }
+
+  /* ============ АДАПТИВ ============ */
+  @media (max-width: 960px){
+    .calendar-wrapper{ overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Расписание занятий</h1>
+  <div class="meta">
+    <span class="badge week" id="weekNum">—</span>
+    <span class="badge" id="weekType">—</span>
+    <button id="refreshBtn" title="Пересчитать относительно текущей даты">Обновить</button>
+  </div>
+</header>
+
+<div class="calendar-wrapper">
+  <div class="calendar" id="calendar"></div>
+</div>
+
+<script>
+/* =========================================================================
+   1. НАСТРОЙКИ ВРЕМЕНИ ПАР
+   -------------------------------------------------------------------------
+   Чтобы изменить время пар — правьте объект PAIR_TIMES ниже.
+   Ключ — номер пары, значение — { start, end } в формате "ЧЧ:ММ".
+   ========================================================================= */
+const PAIR_TIMES = {
+  1: { start: "18:00", end: "19:20" },
+  2: { start: "19:30", end: "20:50" },
+  3: { start: "21:00", end: "22:20" },
+  // 7 и 8 пары — по данным они идут подряд, добавим их отдельно:
+  7: { start: "18:00", end: "19:20" },
+  8: { start: "19:30", end: "20:50" },
+};
+
+/* =========================================================================
+   2. СТРУКТУРА ДАННЫХ РАСПИСАНИЯ
+   -------------------------------------------------------------------------
+   Как добавлять новые дисциплины:
+     lessons: [
+       {
+         day: 1,              // 1 = ПН, 2 = ВТ, ... 6 = СБ
+         pair: 7,             // номер пары (ключ из PAIR_TIMES)
+         title: "Название",   // если в конце "//", то пара ТОЛЬКО по чётным неделям
+         teacher: "ФИО",
+         url: "https://...",  // ссылка (можно null)
+         fixedTime: null,     // необязательно: { start, end } — переопределить время
+         onlyOdd: false,      // true — только по НЕчётным неделям
+         note: null           // необязательная пометка (ЭУК и т.п.)
+       }, ...
+     ]
+
+   Логика "//":
+     - если title заканчивается на "//" → пара показывается ТОЛЬКО на ЧЁТНОЙ неделе.
+     - иначе → пара показывается КАЖДУЮ неделю.
+   ========================================================================= */
+const lessons = [
+  /* ---------- ПОНЕДЕЛЬНИК ---------- */
+  {
+    day: 1, pair: 7,
+    title: "Основы научных исследований в области анализа данных (лек)",
+    teacher: "Штанов Ю. Н.",
+    url: "https://telemost.yandex.ru/j/87868338394305"
+  },
+  {
+    day: 1, pair: 8,
+    title: "Основы научных исследований в области анализа данных (пр)",
+    teacher: "Штанов Ю. Н.",
+    url: "https://telemost.yandex.ru/j/87868338394305"
+  },
+
+  /* ---------- ВТОРНИК ---------- */
+  {
+    day: 2, pair: 7,
+    title: "Учебная практика (технологическая)",
+    teacher: "Еловой С.Г.",
+    url: "https://telemost.yandex.ru/j/09406274253983"
+  },
+  {
+    day: 2, pair: 8,
+    title: "Иерархические системы управления (лаб)",
+    teacher: "Гордеев А.С.",
+    url: "https://telemost.yandex.ru/j/72466509162065",
+    fixedTime: { start: "19:00", end: "20:20" }, // исключение по времени
+    onlyOdd: true                                // только по нечётным неделям
+  },
+
+  /* ---------- СРЕДА ---------- */
+  {
+    day: 3, pair: 7,
+    title: "Теория принятия решений (лек/лаб)",
+    teacher: "Григоренко В.В.",
+    url: "https://telemost.yandex.ru/j/42325111466351"
+  },
+  {
+    day: 3, pair: 8,
+    title: "Теория принятия решений (лаб)",
+    teacher: "Григоренко В.В.",
+    url: "https://telemost.yandex.ru/j/42325111466351"
+  },
+
+  /* ---------- ЧЕТВЕРГ ---------- */
+  {
+    day: 4, pair: 7,
+    title: "Системная инженерия (лек/пр)",
+    teacher: "Григоренко В.В.",
+    url: "https://telemost.yandex.ru/j/42325111466351"
+  },
+  {
+    day: 4, pair: 8,
+    title: "Системная инженерия (пр)",
+    teacher: "Григоренко В.В.",
+    url: "https://telemost.yandex.ru/j/42325111466351"
+  },
+
+  /* ---------- ПЯТНИЦА ---------- */
+  {
+    day: 5, pair: 7,
+    title: "Методы исследования и моделирование информационных систем (лек/лаб)",
+    teacher: "Берестин Д.К.",
+    url: "https://telemost.yandex.ru/j/30370533590592"
+  },
+  {
+    day: 5, pair: 8,
+    title: "Методы исследования и моделирование информационных систем (лаб)",
+    teacher: "Берестин Д.К.",
+    url: "https://telemost.yandex.ru/j/30370533590592"
+  },
+
+  /* ---------- СУББОТА ---------- */
+  {
+    day: 6, pair: 1,
+    title: "История и методология науки (пр)",
+    teacher: "Никулина О.В.",
+    url: "https://telemost.yandex.ru/j/69527416643165"
+  },
+  {
+    day: 6, pair: 2,
+    title: "Практикум по межкультурной коммуникации (пр)",
+    teacher: "Сердюкова А.М.",
+    url: "https://telemost.yandex.ru/j/03338223589531"
+  },
+  {
+    day: 6, pair: 3,
+    title: "—",                 // пустая пара (можно не добавлять вовсе)
+    teacher: "",
+    url: null,
+    empty: true
+  },
+  {
+    day: 6, pair: 3,
+    title: "История и методология науки (лекция 16ч)",
+    teacher: "Никулина О.В.",
+    url: null,
+    note: "ЭУК"
+  }
+];
+
+/* =========================================================================
+   3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+   ========================================================================= */
+
+const DAY_NAMES = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
+
+/** Возвращает объект Date для начала недели (понедельник) от переданной даты */
+function getMonday(date){
+  const d = new Date(date);
+  const day = d.getDay();            // 0 = вс, 1 = пн, ...
+  const diff = (day === 0 ? -6 : 1 - day); // сдвиг к понедельнику
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+/** Номер недели в году (ISO-подобный, достаточно для чётности) */
+function getWeekNumber(date){
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+/** Формат даты для заголовка: "12.05" */
+function formatShortDate(d){
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}`;
+}
+
+/** Проверка: показывать ли пару на текущей неделе */
+function isLessonVisible(lesson, weekNumber){
+  const isEven = weekNumber % 2 === 0;
+
+  // Явное условие onlyOdd (для Иерархических систем управления)
+  if (lesson.onlyOdd && isEven) return false;
+
+  // Логика "//": если title заканчивается на "//" — только чётная неделя
+  if (lesson.title.trim().endsWith("//")) {
+    return isEven;
+  }
+
+  return true;
+}
+
+/* =========================================================================
+   4. РЕНДЕР КАЛЕНДАРЯ
+   ========================================================================= */
+function renderCalendar(){
+  const today = new Date();
+  const monday = getMonday(today);
+  const weekNumber = getWeekNumber(monday);
+  const isEven = weekNumber % 2 === 0;
+
+  // Обновляем индикаторы
+  document.getElementById("weekNum").textContent = `Неделя №${weekNumber}`;
+  const typeEl = document.getElementById("weekType");
+  typeEl.textContent = isEven ? "Чётная неделя" : "Нечётная неделя";
+  typeEl.className = "badge " + (isEven ? "even" : "odd");
+
+  const calendar = document.getElementById("calendar");
+  calendar.innerHTML = "";
+
+  // Собираем уникальные номера пар из данных + базовые (1,2,3,7,8)
+  const pairNumbers = Array.from(new Set([
+    1, 2, 3, 7, 8,
+    ...lessons.map(l => l.pair)
+  ])).sort((a, b) => a - b);
+
+  /* ---------- Шапка: пустая ячейка + 7 дней ---------- */
+  calendar.appendChild(createCell("head", ""));
+  for (let i = 0; i < 7; i++){
+    const dayDate = new Date(monday);
+    dayDate.setDate(monday.getDate() + i);
+    const isToday = dayDate.toDateString() === today.toDateString();
+    const cell = document.createElement("div");
+    cell.className = "head" + (isToday ? " today" : "");
+    cell.innerHTML = `${DAY_NAMES[i]}<span class="date">${formatShortDate(dayDate)}</span>`;
+    calendar.appendChild(cell);
+  }
+
+  /* ---------- Строки: время + 7 дней ---------- */
+  pairNumbers.forEach(pairNum => {
+    // Колонка времени
+    const timeCell = document.createElement("div");
+    timeCell.className = "time-cell";
+    const t = PAIR_TIMES[pairNum] || { start: "—", end: "—" };
+    timeCell.innerHTML = `
+      <span class="pair-num">${pairNum} пара</span>
+      <span>${t.start}–${t.end}</span>
+    `;
+    calendar.appendChild(timeCell);
+
+    // Дни
+    for (let day = 1; day <= 7; day++){
+      const cell = document.createElement("div");
+      cell.className = "empty";
+
+      const dayLessons = lessons.filter(l =>
+        l.day === day &&
+        l.pair === pairNum &&
+        !l.empty &&
+        isLessonVisible(l, weekNumber)
+      );
+
+      if (dayLessons.length === 0){
+        calendar.appendChild(cell);
+        continue;
+      }
+
+      cell.className = "lesson";
+      dayLessons.forEach(l => {
+        const block = document.createElement("div");
+
+        // Время (с учётом fixedTime)
+        const timeInfo = l.fixedTime
+          ? `${l.fixedTime.start}–${l.fixedTime.end}`
+          : (PAIR_TIMES[l.pair]
+              ? `${PAIR_TIMES[l.pair].start}–${PAIR_TIMES[l.pair].end}`
+              : "");
+
+        let html = `<div class="title">${escapeHtml(l.title)}</div>`;
+        if (l.teacher) html += `<div class="teacher">${escapeHtml(l.teacher)}</div>`;
+        if (timeInfo)  html += `<div class="teacher" style="font-size:.75rem">${timeInfo}</div>`;
+        if (l.note)    html += `<div class="note">${escapeHtml(l.note)}</div>`;
+        if (l.url)     html += `<a href="${l.url}" target="_blank" rel="noopener">Подключиться</a>`;
+
+        block.innerHTML = html;
+        cell.appendChild(block);
+      });
+
+      calendar.appendChild(cell);
+    }
+  });
+}
+
+function createCell(cls, html){
+  const d = document.createElement("div");
+  d.className = cls;
+  d.innerHTML = html;
+  return d;
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* =========================================================================
+   5. ЗАПУСК
+   ========================================================================= */
+document.getElementById("refreshBtn").addEventListener("click", renderCalendar);
+renderCalendar(); // автоматический расчёт при загрузке
+
+/* =========================================================================
+   ИНСТРУКЦИЯ ПО ДЕПЛОЮ НА GITHUB PAGES
+   -------------------------------------------------------------------------
+   1. Создайте аккаунт на github.com (если ещё нет).
+   2. Нажмите "New repository". Имя, например: schedule.
+      Сделайте репозиторий публичным (Public). Create repository.
+   3. На странице репозитория нажмите "Add file" → "Upload files"
+      и загрузите этот файл index.html. Commit changes.
+   4. Перейдите в Settings (вкладка репозитория) → Pages.
+   5. В разделе "Build and deployment" → Source выберите "Deploy from a branch".
+      Branch: main (или master), папка: / (root). Нажмите Save.
+   6. Через 1–2 минуты страница будет доступна по адресу:
+        https://<ваш-логин>.github.io/<имя-репозитория>/
+      Например: https://ivanov.github.io/schedule/
+   ========================================================================= */
+</script>
+</body>
+</html>
