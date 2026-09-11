@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Расписание занятий — неделя</title>
 <style>
-  /* ============ БАЗОВЫЕ СТИЛИ ============ */
   :root{
     --bg: #f7f9fc;
     --card: #ffffff;
@@ -36,17 +35,8 @@
     justify-content: space-between;
     gap: 12px;
   }
-  h1{
-    font-size: 1.5rem;
-    margin: 0;
-    font-weight: 700;
-  }
-  .meta{
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
+  h1{ font-size: 1.5rem; margin: 0; font-weight: 700; }
+  .meta{ display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .badge{
     display: inline-block;
     padding: 4px 12px;
@@ -55,11 +45,7 @@
     font-weight: 600;
     border: 1px solid transparent;
   }
-  .badge.week{
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-color: #bfdbfe;
-  }
+  .badge.week{ background: var(--accent-soft); color: var(--accent); border-color: #bfdbfe; }
   .badge.even{ background: var(--even); color: #047857; border-color: #a7f3d0; }
   .badge.odd { background: var(--odd);  color: #b45309; border-color: #fde68a; }
   button{
@@ -75,7 +61,6 @@
   }
   button:hover{ background: #f1f5f9; }
 
-  /* ============ СЕТКА КАЛЕНДАРЯ ============ */
   .calendar-wrapper{
     max-width: 1200px;
     margin: 0 auto;
@@ -86,7 +71,6 @@
   }
   .calendar{
     display: grid;
-    /* 1 колонка под время + 7 дней */
     grid-template-columns: 90px repeat(7, minmax(140px, 1fr));
     min-width: 900px;
   }
@@ -96,9 +80,8 @@
     padding: 8px;
     min-height: 92px;
   }
-  .calendar > div:nth-child(8n){ border-right: none; } /* последняя колонка */
+  .calendar > div:nth-child(8n){ border-right: none; }
 
-  /* Заголовки */
   .head{
     background: #f1f5f9;
     font-weight: 700;
@@ -110,18 +93,9 @@
     top: 0;
     z-index: 2;
   }
-  .head.today{
-    background: var(--accent);
-    color: #fff;
-  }
-  .head .date{
-    display: block;
-    font-weight: 400;
-    font-size: .78rem;
-    opacity: .85;
-  }
+  .head.today{ background: var(--accent); color: #fff; }
+  .head .date{ display: block; font-weight: 400; font-size: .78rem; opacity: .85; }
 
-  /* Колонка с временем пары */
   .time-cell{
     background: #f8fafc;
     font-size: .8rem;
@@ -133,26 +107,12 @@
     gap: 2px;
     font-weight: 600;
   }
-  .time-cell .pair-num{
-    color: var(--text);
-    font-size: .95rem;
-  }
+  .time-cell .pair-num{ color: var(--text); font-size: .95rem; }
 
-  /* Ячейка занятия */
-  .lesson{
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .lesson .title{
-    font-weight: 600;
-    font-size: .88rem;
-  }
-  .lesson .teacher{
-    font-size: .8rem;
-    color: var(--muted);
-  }
+  .lesson{ background: #fff; display: flex; flex-direction: column; gap: 4px; }
+  .lesson .title{ font-weight: 600; font-size: .88rem; }
+  .lesson .teacher{ font-size: .8rem; color: var(--muted); }
+  .lesson .time{ font-size: .75rem; color: var(--muted); }
   .lesson a{
     margin-top: auto;
     font-size: .8rem;
@@ -165,16 +125,7 @@
   .lesson a:hover{ color: #1d4ed8; border-bottom-style: solid; }
 
   .empty{ background: #fbfdff; }
-  .note{
-    font-size: .8rem;
-    color: var(--muted);
-    background: #fefce8;
-    border-left: 3px solid #facc15;
-    padding: 6px 8px;
-    border-radius: 4px;
-  }
 
-  /* ============ АДАПТИВ ============ */
   @media (max-width: 960px){
     .calendar-wrapper{ overflow-x: auto; }
   }
@@ -203,47 +154,46 @@
    Ключ — номер пары, значение — { start, end } в формате "ЧЧ:ММ".
    ========================================================================= */
 const PAIR_TIMES = {
-  1: { start: "18:00", end: "19:20" },
-  2: { start: "19:30", end: "20:50" },
-  3: { start: "21:00", end: "22:20" },
-  // 7 и 8 пары — по данным они идут подряд, добавим их отдельно:
+  1: { start: "08:30", end: "09:50" },
+  2: { start: "10:00", end: "11:20" },
   7: { start: "18:00", end: "19:20" },
   8: { start: "19:30", end: "20:50" },
 };
 
 /* =========================================================================
-   2. СТРУКТУРА ДАННЫХ РАСПИСАНИЯ
+   2. СДВИГ ЧЁТНОСТИ НЕДЕЛИ
+   -------------------------------------------------------------------------
+   Если нужно, чтобы текущая неделя считалась ЧЁТНОЙ — подберите WEEK_OFFSET.
+   Чётность вычисляется как: (weekNumber + WEEK_OFFSET) % 2 === 0.
+   Меняйте значение 0/1, пока индикатор сверху не покажет нужную чётность.
+   ========================================================================= */
+const WEEK_OFFSET = 1;
+
+/* =========================================================================
+   3. СТРУКТУРА ДАННЫХ РАСПИСАНИЯ
    -------------------------------------------------------------------------
    Как добавлять новые дисциплины:
-     lessons: [
-       {
-         day: 1,              // 1 = ПН, 2 = ВТ, ... 6 = СБ
-         pair: 7,             // номер пары (ключ из PAIR_TIMES)
-         title: "Название",   // если в конце "//", то пара ТОЛЬКО по чётным неделям
-         teacher: "ФИО",
-         url: "https://...",  // ссылка (можно null)
-         fixedTime: null,     // необязательно: { start, end } — переопределить время
-         onlyOdd: false,      // true — только по НЕчётным неделям
-         note: null           // необязательная пометка (ЭУК и т.п.)
-       }, ...
-     ]
-
-   Логика "//":
-     - если title заканчивается на "//" → пара показывается ТОЛЬКО на ЧЁТНОЙ неделе.
-     - иначе → пара показывается КАЖДУЮ неделю.
+     {
+       day: 1,              // 1 = ПН, 2 = ВТ, ... 6 = СБ
+       pair: 7,             // номер пары (ключ из PAIR_TIMES)
+       title: "Название",   // если в конце "//", то пара ТОЛЬКО по чётным неделям
+       teacher: "ФИО полностью",
+       url: "https://...",  // ссылка (можно null)
+       onlyOdd: false       // true — только по НЕчётным неделям
+     }
    ========================================================================= */
 const lessons = [
   /* ---------- ПОНЕДЕЛЬНИК ---------- */
   {
     day: 1, pair: 7,
     title: "Основы научных исследований в области анализа данных (лек)",
-    teacher: "Штанов Ю. Н.",
+    teacher: "Штанов Юрий Николаевич",
     url: "https://telemost.yandex.ru/j/87868338394305"
   },
   {
     day: 1, pair: 8,
     title: "Основы научных исследований в области анализа данных (пр)",
-    teacher: "Штанов Ю. Н.",
+    teacher: "Штанов Юрий Николаевич",
     url: "https://telemost.yandex.ru/j/87868338394305"
   },
 
@@ -251,29 +201,28 @@ const lessons = [
   {
     day: 2, pair: 7,
     title: "Учебная практика (технологическая)",
-    teacher: "Еловой С.Г.",
+    teacher: "Еловой Сергей Григорьевич",
     url: "https://telemost.yandex.ru/j/09406274253983"
   },
   {
     day: 2, pair: 8,
     title: "Иерархические системы управления (лаб)",
-    teacher: "Гордеев А.С.",
+    teacher: "Гордеев Александр Сергеевич",
     url: "https://telemost.yandex.ru/j/72466509162065",
-    fixedTime: { start: "19:00", end: "20:20" }, // исключение по времени
-    onlyOdd: true                                // только по нечётным неделям
+    onlyOdd: true
   },
 
   /* ---------- СРЕДА ---------- */
   {
     day: 3, pair: 7,
     title: "Теория принятия решений (лек/лаб)",
-    teacher: "Григоренко В.В.",
+    teacher: "Григоренко Виолетта Вячеславовна",
     url: "https://telemost.yandex.ru/j/42325111466351"
   },
   {
     day: 3, pair: 8,
     title: "Теория принятия решений (лаб)",
-    teacher: "Григоренко В.В.",
+    teacher: "Григоренко Виолетта Вячеславовна",
     url: "https://telemost.yandex.ru/j/42325111466351"
   },
 
@@ -281,13 +230,13 @@ const lessons = [
   {
     day: 4, pair: 7,
     title: "Системная инженерия (лек/пр)",
-    teacher: "Григоренко В.В.",
+    teacher: "Григоренко Виолетта Вячеславовна",
     url: "https://telemost.yandex.ru/j/42325111466351"
   },
   {
     day: 4, pair: 8,
     title: "Системная инженерия (пр)",
-    teacher: "Григоренко В.В.",
+    teacher: "Григоренко Виолетта Вячеславовна",
     url: "https://telemost.yandex.ru/j/42325111466351"
   },
 
@@ -295,13 +244,13 @@ const lessons = [
   {
     day: 5, pair: 7,
     title: "Методы исследования и моделирование информационных систем (лек/лаб)",
-    teacher: "Берестин Д.К.",
+    teacher: "Берестин Дмитрий Константинович",
     url: "https://telemost.yandex.ru/j/30370533590592"
   },
   {
     day: 5, pair: 8,
     title: "Методы исследования и моделирование информационных систем (лаб)",
-    teacher: "Берестин Д.К.",
+    teacher: "Берестин Дмитрий Константинович",
     url: "https://telemost.yandex.ru/j/30370533590592"
   },
 
@@ -309,48 +258,31 @@ const lessons = [
   {
     day: 6, pair: 1,
     title: "История и методология науки (пр)",
-    teacher: "Никулина О.В.",
+    teacher: "Никулина Ольга Вячеславовна",
     url: "https://telemost.yandex.ru/j/69527416643165"
   },
   {
     day: 6, pair: 2,
     title: "Практикум по межкультурной коммуникации (пр)",
-    teacher: "Сердюкова А.М.",
+    teacher: "Сердюкова Александра Михайловна",
     url: "https://telemost.yandex.ru/j/03338223589531"
-  },
-  {
-    day: 6, pair: 3,
-    title: "—",                 // пустая пара (можно не добавлять вовсе)
-    teacher: "",
-    url: null,
-    empty: true
-  },
-  {
-    day: 6, pair: 3,
-    title: "История и методология науки (лекция 16ч)",
-    teacher: "Никулина О.В.",
-    url: null,
-    note: "ЭУК"
   }
 ];
 
 /* =========================================================================
-   3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+   4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
    ========================================================================= */
-
 const DAY_NAMES = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
 
-/** Возвращает объект Date для начала недели (понедельник) от переданной даты */
 function getMonday(date){
   const d = new Date(date);
-  const day = d.getDay();            // 0 = вс, 1 = пн, ...
-  const diff = (day === 0 ? -6 : 1 - day); // сдвиг к понедельнику
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
   d.setDate(d.getDate() + diff);
   d.setHours(0,0,0,0);
   return d;
 }
 
-/** Номер недели в году (ISO-подобный, достаточно для чётности) */
 function getWeekNumber(date){
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -359,38 +291,58 @@ function getWeekNumber(date){
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-/** Формат даты для заголовка: "12.05" */
 function formatShortDate(d){
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}.${mm}`;
 }
 
-/** Проверка: показывать ли пару на текущей неделе */
-function isLessonVisible(lesson, weekNumber){
-  const isEven = weekNumber % 2 === 0;
-
-  // Явное условие onlyOdd (для Иерархических систем управления)
+function isLessonVisible(lesson, isEven){
   if (lesson.onlyOdd && isEven) return false;
-
-  // Логика "//": если title заканчивается на "//" — только чётная неделя
-  if (lesson.title.trim().endsWith("//")) {
-    return isEven;
-  }
-
+  if (lesson.title.trim().endsWith("//")) return isEven;
   return true;
 }
 
 /* =========================================================================
-   4. РЕНДЕР КАЛЕНДАРЯ
+   5. ЛОГИКА ВРЕМЕНИ ДЛЯ ГОРДЕЕВА А.С.
+   -------------------------------------------------------------------------
+   Если у Гордеева в один день стоят и 7, и 8 пары:
+     - 7 пара → 19:00–20:20
+     - 8 пара → 20:30–21:50 (сдвигается)
+   Если только 8 пара:
+     - 8 пара → 19:30–20:50 (по умолчанию)
+   ========================================================================= */
+const GORDEEV_TEACHER = "Гордеев Александр Сергеевич";
+
+function getLessonTime(lesson){
+  // Спец-логика для Гордеева А.С.
+  if (lesson.teacher === GORDEEV_TEACHER) {
+    // Ищем все видимые занятия Гордеева в этот же день
+    const sameDayLessons = lessons.filter(l =>
+      l.day === lesson.day && l.teacher === GORDEEV_TEACHER
+    );
+    const has7 = sameDayLessons.some(l => l.pair === 7);
+    const has8 = sameDayLessons.some(l => l.pair === 8);
+
+    if (has7 && has8) {
+      if (lesson.pair === 7) return { start: "19:00", end: "20:20" };
+      if (lesson.pair === 8) return { start: "20:30", end: "21:50" };
+    }
+    // если только 8 — стандартное время 19:30–20:50 (из PAIR_TIMES)
+  }
+
+  return PAIR_TIMES[lesson.pair] || { start: "—", end: "—" };
+}
+
+/* =========================================================================
+   6. РЕНДЕР КАЛЕНДАРЯ
    ========================================================================= */
 function renderCalendar(){
   const today = new Date();
   const monday = getMonday(today);
   const weekNumber = getWeekNumber(monday);
-  const isEven = weekNumber % 2 === 0;
+  const isEven = (weekNumber + WEEK_OFFSET) % 2 === 0;
 
-  // Обновляем индикаторы
   document.getElementById("weekNum").textContent = `Неделя №${weekNumber}`;
   const typeEl = document.getElementById("weekType");
   typeEl.textContent = isEven ? "Чётная неделя" : "Нечётная неделя";
@@ -399,13 +351,13 @@ function renderCalendar(){
   const calendar = document.getElementById("calendar");
   calendar.innerHTML = "";
 
-  // Собираем уникальные номера пар из данных + базовые (1,2,3,7,8)
+  // Набор пар для отображения
   const pairNumbers = Array.from(new Set([
-    1, 2, 3, 7, 8,
+    1, 2, 7, 8,
     ...lessons.map(l => l.pair)
   ])).sort((a, b) => a - b);
 
-  /* ---------- Шапка: пустая ячейка + 7 дней ---------- */
+  // Шапка
   calendar.appendChild(createCell("head", ""));
   for (let i = 0; i < 7; i++){
     const dayDate = new Date(monday);
@@ -417,9 +369,9 @@ function renderCalendar(){
     calendar.appendChild(cell);
   }
 
-  /* ---------- Строки: время + 7 дней ---------- */
+  // Строки
   pairNumbers.forEach(pairNum => {
-    // Колонка времени
+    // Колонка времени (берём из PAIR_TIMES как «дефолт»)
     const timeCell = document.createElement("div");
     timeCell.className = "time-cell";
     const t = PAIR_TIMES[pairNum] || { start: "—", end: "—" };
@@ -429,7 +381,6 @@ function renderCalendar(){
     `;
     calendar.appendChild(timeCell);
 
-    // Дни
     for (let day = 1; day <= 7; day++){
       const cell = document.createElement("div");
       cell.className = "empty";
@@ -437,8 +388,7 @@ function renderCalendar(){
       const dayLessons = lessons.filter(l =>
         l.day === day &&
         l.pair === pairNum &&
-        !l.empty &&
-        isLessonVisible(l, weekNumber)
+        isLessonVisible(l, isEven)
       );
 
       if (dayLessons.length === 0){
@@ -449,18 +399,11 @@ function renderCalendar(){
       cell.className = "lesson";
       dayLessons.forEach(l => {
         const block = document.createElement("div");
-
-        // Время (с учётом fixedTime)
-        const timeInfo = l.fixedTime
-          ? `${l.fixedTime.start}–${l.fixedTime.end}`
-          : (PAIR_TIMES[l.pair]
-              ? `${PAIR_TIMES[l.pair].start}–${PAIR_TIMES[l.pair].end}`
-              : "");
+        const timeInfo = getLessonTime(l);
 
         let html = `<div class="title">${escapeHtml(l.title)}</div>`;
         if (l.teacher) html += `<div class="teacher">${escapeHtml(l.teacher)}</div>`;
-        if (timeInfo)  html += `<div class="teacher" style="font-size:.75rem">${timeInfo}</div>`;
-        if (l.note)    html += `<div class="note">${escapeHtml(l.note)}</div>`;
+        if (timeInfo)  html += `<div class="time">${timeInfo.start}–${timeInfo.end}</div>`;
         if (l.url)     html += `<a href="${l.url}" target="_blank" rel="noopener">Подключиться</a>`;
 
         block.innerHTML = html;
@@ -488,10 +431,10 @@ function escapeHtml(str){
 }
 
 /* =========================================================================
-   5. ЗАПУСК
+   7. ЗАПУСК
    ========================================================================= */
 document.getElementById("refreshBtn").addEventListener("click", renderCalendar);
-renderCalendar(); // автоматический расчёт при загрузке
+renderCalendar();
 
 /* =========================================================================
    ИНСТРУКЦИЯ ПО ДЕПЛОЮ НА GITHUB PAGES
@@ -506,7 +449,6 @@ renderCalendar(); // автоматический расчёт при загру
       Branch: main (или master), папка: / (root). Нажмите Save.
    6. Через 1–2 минуты страница будет доступна по адресу:
         https://<ваш-логин>.github.io/<имя-репозитория>/
-      Например: https://ivanov.github.io/schedule/
    ========================================================================= */
 </script>
 </body>
