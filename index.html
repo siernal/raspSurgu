@@ -15,6 +15,9 @@
     --accent-soft: #dbeafe;
     --even: #ecfdf5;
     --odd: #fef3c7;
+    --warn-bg: #fff7ed;
+    --warn-border: #fdba74;
+    --warn-text: #c2410c;
     --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
   }
   *{ box-sizing: border-box; }
@@ -115,7 +118,7 @@
   .lesson{ background: #fff; display: flex; flex-direction: column; gap: 4px; }
   .lesson .title{ font-weight: 600; font-size: .88rem; }
   .lesson .teacher{ font-size: .8rem; color: var(--muted); }
-  .lesson .time{ font-size: .75rem; color: var(--muted); }
+  .lesson .time{ font-size: .78rem; color: var(--text); font-weight: 600; }
   .lesson a{
     margin-top: auto;
     font-size: .8rem;
@@ -126,6 +129,19 @@
     border-bottom: 1px dashed var(--accent);
   }
   .lesson a:hover{ color: #1d4ed8; border-bottom-style: solid; }
+
+  .shift-note{
+    display: inline-block;
+    background: var(--warn-bg);
+    color: var(--warn-text);
+    border: 1px solid var(--warn-border);
+    border-left-width: 3px;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
 
   .empty{ background: #fbfdff; }
 
@@ -153,9 +169,9 @@
       <button id="nextBtn">Следующая →</button>
     </div>
     <div style="font-size:.85rem;color:var(--muted);">
-      <b style="color:var(--text)">Чётная:</b> ПН — нет; ВТ — 2 пары ИСУ; СР — 1 ТПР; ЧТ — 1 СисИнж; ПТ — 1 МИиМ; СБ — 2 пары.
+      <b style="color:var(--text)">Чётная:</b> ПН — нет; ВТ — 2 ИСУ (сдвиг 19:00 / 20:30); СР — 1 ТПР; ЧТ — 1 СисИнж; ПТ — 1 МИиМ; СБ — 2 пары.
       &nbsp;|&nbsp;
-      <b style="color:var(--text)">Нечётная:</b> ПН — 2 ОНИ; ВТ — практика + ИСУ; СР — 2 ТПР; ЧТ — 2 СисИнж; ПТ — 2 МИиМ; СБ — 1 (практикум).
+      <b style="color:var(--text)">Нечётная:</b> ПН — 2 ОНИ; ВТ — практика 18:00 + ИСУ 19:30; СР — 2 ТПР; ЧТ — 2 СисИнж; ПТ — 2 МИиМ; СБ — 1 практикум.
     </div>
   </div>
 </div>
@@ -167,8 +183,6 @@
 <script>
 /* =========================================================================
    1. ВРЕМЯ ПАР (по умолчанию)
-   -------------------------------------------------------------------------
-   Меняйте здесь, если поменяется стандартное время.
    ========================================================================= */
 const PAIR_TIMES = {
   1: { start: "08:30", end: "09:50" },
@@ -179,26 +193,16 @@ const PAIR_TIMES = {
 
 /* =========================================================================
    2. СДВИГ ЧЁТНОСТИ
-   -------------------------------------------------------------------------
-   Чётность = ((weekNumber + WEEK_OFFSET) % 2 === 0).
-   Сейчас WEEK_OFFSET = 1, чтобы текущая неделя была ЧЁТНОЙ.
-   Если нужно сдвинуть наоборот — поменяйте на 0.
    ========================================================================= */
-const WEEK_OFFSET = 1;
+const WEEK_OFFSET = 1; // текущая неделя — чётная
 
 /* =========================================================================
    3. ДАННЫЕ РАСПИСАНИЯ
    -------------------------------------------------------------------------
-   Поле weeks:
-     "all"  — каждую неделю
-     "even" — только чётная
-     "odd"  — только нечётная
-
-   Как добавлять новую дисциплину — просто скопируйте объект и поменяйте поля.
+   weeks: "all" | "even" | "odd"
    ========================================================================= */
 const lessons = [
-  /* ===================== ПОНЕДЕЛЬНИК ===================== */
-  // Нечётная: 2 пары ОНИ
+  /* ПОНЕДЕЛЬНИК */
   {
     day: 1, pair: 7, weeks: "odd",
     title: "Основы научных исследований в области анализа данных (лек)",
@@ -212,15 +216,21 @@ const lessons = [
     url: "https://telemost.yandex.ru/j/87868338394305"
   },
 
-  /* ===================== ВТОРНИК ===================== */
-  // Нечётная: 7 — учебная практика, 8 — ИСУ (лаб)
+  /* ВТОРНИК */
+  // 7 пара — чётная: ИСУ (лек) Гордеев; нечётная: учебная практика Еловой
+  {
+    day: 2, pair: 7, weeks: "even",
+    title: "Иерархические системы управления (лек)",
+    teacher: "Гордеев Александр Сергеевич",
+    url: "https://telemost.yandex.ru/j/72466509162065"
+  },
   {
     day: 2, pair: 7, weeks: "odd",
     title: "Учебная практика (технологическая)",
     teacher: "Еловой Сергей Григорьевич",
     url: "https://telemost.yandex.ru/j/09406274253983"
   },
-  // Чётная: 8 — ИСУ (лаб); Нечётная: 8 — ИСУ (лаб)
+  // 8 пара — каждую неделю: ИСУ (лаб) Гордеев
   {
     day: 2, pair: 8, weeks: "all",
     title: "Иерархические системы управления (лаб)",
@@ -228,8 +238,7 @@ const lessons = [
     url: "https://telemost.yandex.ru/j/72466509162065"
   },
 
-  /* ===================== СРЕДА ===================== */
-  // Чётная: 7 — ТПР; Нечётная: 7 и 8 — ТПР
+  /* СРЕДА */
   {
     day: 3, pair: 7, weeks: "all",
     title: "Теория принятия решений (лек/лаб)",
@@ -243,8 +252,7 @@ const lessons = [
     url: "https://telemost.yandex.ru/j/42325111466351"
   },
 
-  /* ===================== ЧЕТВЕРГ ===================== */
-  // Чётная: 7 — СисИнж; Нечётная: 7 и 8 — СисИнж
+  /* ЧЕТВЕРГ */
   {
     day: 4, pair: 7, weeks: "all",
     title: "Системная инженерия (лек/пр)",
@@ -258,8 +266,7 @@ const lessons = [
     url: "https://telemost.yandex.ru/j/42325111466351"
   },
 
-  /* ===================== ПЯТНИЦА ===================== */
-  // Чётная: 7 — МИиМ; Нечётная: 7 и 8 — МИиМ
+  /* ПЯТНИЦА */
   {
     day: 5, pair: 7, weeks: "all",
     title: "Методы исследования и моделирование информационных систем (лек/лаб)",
@@ -273,8 +280,7 @@ const lessons = [
     url: "https://telemost.yandex.ru/j/30370533590592"
   },
 
-  /* ===================== СУББОТА ===================== */
-  // Чётная: 1 и 2 пары; Нечётная: только 2 (практикум)
+  /* СУББОТА */
   {
     day: 6, pair: 1, weeks: "even",
     title: "История и методология науки (пр)",
@@ -293,19 +299,16 @@ const lessons = [
    4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
    ========================================================================= */
 const DAY_NAMES = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
-const GORDEEV_TEACHER = "Гордеев Александр Сергеевич";
+const GORDEEV = "Гордеев Александр Сергеевич";
 
-/** Понедельник недели, в которую попадает дата */
 function getMonday(date){
   const d = new Date(date);
-  const day = d.getDay(); // 0 = вс
+  const day = d.getDay();
   const diff = (day === 0 ? -6 : 1 - day);
   d.setDate(d.getDate() + diff);
   d.setHours(0,0,0,0);
   return d;
 }
-
-/** Номер недели в году (ISO) */
 function getWeekNumber(date){
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -313,46 +316,19 @@ function getWeekNumber(date){
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
-
 function formatShortDate(d){
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}.${mm}`;
 }
-
-/** Чётность недели с учётом сдвига */
 function isEvenWeek(weekNumber){
   return (weekNumber + WEEK_OFFSET) % 2 === 0;
 }
-
-/** Показывать ли пару на этой неделе */
 function isLessonVisible(lesson, even){
   if (lesson.weeks === "even") return even;
   if (lesson.weeks === "odd")  return !even;
-  return true; // "all"
+  return true;
 }
-
-/** Время пары (с учётом исключения для Гордеева) */
-function getLessonTime(lesson, even){
-  if (lesson.teacher === GORDEEV_TEACHER) {
-    // Какие пары Гордеева видны в этот день на этой неделе?
-    const dayLessons = lessons.filter(l =>
-      l.day === lesson.day &&
-      l.teacher === GORDEEV_TEACHER &&
-      isLessonVisible(l, even)
-    );
-    const has7 = dayLessons.some(l => l.pair === 7);
-    const has8 = dayLessons.some(l => l.pair === 8);
-
-    if (has7 && has8) {
-      if (lesson.pair === 7) return { start: "19:00", end: "20:20" };
-      if (lesson.pair === 8) return { start: "20:30", end: "21:50" };
-    }
-    // если только 8 — стандартное 19:30–20:50
-  }
-  return PAIR_TIMES[lesson.pair] || { start: "—", end: "—" };
-}
-
 function escapeHtml(str){
   return String(str)
     .replace(/&/g, "&amp;")
@@ -362,12 +338,38 @@ function escapeHtml(str){
 }
 
 /* =========================================================================
-   5. СОСТОЯНИЕ И НАВИГАЦИЯ
+   5. ВРЕМЯ ПАР — СПЕЦ-ЛОГИКА ДЛЯ ГОРДЕЕВА А.С.
+   -------------------------------------------------------------------------
+   Сдвиг применяется ТОЛЬКО когда у Гордеева А.С. в один день стоят
+   две пары подряд (7 и 8). Тогда:
+       7 пара → 19:00–20:20
+       8 пара → 20:30–21:50
+   Во всех остальных случаях используется стандартное время из PAIR_TIMES.
    ========================================================================= */
-// Смещение недели относительно текущей (0 = текущая, -1 = прошлая, +1 = следующая)
+function getLessonTime(lesson, even){
+  // Смотрим, есть ли у Гордеева в этот же день и 7, и 8 видимые пары
+  const gordeevToday = lessons.filter(l =>
+    l.day === lesson.day &&
+    l.teacher === GORDEEV &&
+    isLessonVisible(l, even)
+  );
+  const hasGordeev7 = gordeevToday.some(l => l.pair === 7);
+  const hasGordeev8 = gordeevToday.some(l => l.pair === 8);
+
+  if (hasGordeev7 && hasGordeev8 && lesson.teacher === GORDEEV) {
+    if (lesson.pair === 7) return { start: "19:00", end: "20:20", shifted: true };
+    if (lesson.pair === 8) return { start: "20:30", end: "21:50", shifted: true };
+  }
+
+  const t = PAIR_TIMES[lesson.pair] || { start: "—", end: "—" };
+  return { start: t.start, end: t.end, shifted: false };
+}
+
+/* =========================================================================
+   6. СОСТОЯНИЕ И НАВИГАЦИЯ
+   ========================================================================= */
 let weekOffset = 0;
 
-/** Возвращает дату понедельника отображаемой недели */
 function getDisplayedMonday(){
   const d = new Date();
   d.setDate(d.getDate() + weekOffset * 7);
@@ -375,7 +377,7 @@ function getDisplayedMonday(){
 }
 
 /* =========================================================================
-   6. РЕНДЕР
+   7. РЕНДЕР
    ========================================================================= */
 function renderCalendar(){
   const today = new Date();
@@ -383,7 +385,6 @@ function renderCalendar(){
   const weekNumber = getWeekNumber(monday);
   const even = isEvenWeek(weekNumber);
 
-  // Заголовки
   document.getElementById("weekNum").textContent = `Неделя №${weekNumber}`;
   const typeEl = document.getElementById("weekType");
   typeEl.textContent = even ? "Чётная неделя" : "Нечётная неделя";
@@ -398,13 +399,11 @@ function renderCalendar(){
   const calendar = document.getElementById("calendar");
   calendar.innerHTML = "";
 
-  // Набор пар
   const pairNumbers = Array.from(new Set([
     1, 2, 7, 8,
     ...lessons.map(l => l.pair)
   ])).sort((a, b) => a - b);
 
-  // Шапка
   calendar.appendChild(createCell("head", ""));
   for (let i = 0; i < 7; i++){
     const dayDate = new Date(monday);
@@ -416,7 +415,6 @@ function renderCalendar(){
     calendar.appendChild(cell);
   }
 
-  // Строки
   pairNumbers.forEach(pairNum => {
     const timeCell = document.createElement("div");
     timeCell.className = "time-cell";
@@ -449,8 +447,11 @@ function renderCalendar(){
 
         let html = `<div class="title">${escapeHtml(l.title)}</div>`;
         if (l.teacher) html += `<div class="teacher">${escapeHtml(l.teacher)}</div>`;
-        if (timeInfo)  html += `<div class="time">${timeInfo.start}–${timeInfo.end}</div>`;
-        if (l.url)     html += `<a href="${l.url}" target="_blank" rel="noopener">Подключиться</a>`;
+        html += `<div class="time">${timeInfo.start}–${timeInfo.end}</div>`;
+        if (timeInfo.shifted) {
+          html += `<div class="shift-note">⏱ сдвиг: ${timeInfo.start}–${timeInfo.end}</div>`;
+        }
+        if (l.url) html += `<a href="${l.url}" target="_blank" rel="noopener">Подключиться</a>`;
 
         block.innerHTML = html;
         cell.appendChild(block);
@@ -469,7 +470,7 @@ function createCell(cls, html){
 }
 
 /* =========================================================================
-   7. ЗАПУСК И НАВИГАЦИЯ
+   8. ЗАПУСК И НАВИГАЦИЯ
    ========================================================================= */
 document.getElementById("prevBtn").addEventListener("click", () => {
   weekOffset -= 1;
@@ -485,18 +486,6 @@ document.getElementById("todayBtn").addEventListener("click", () => {
 });
 
 renderCalendar();
-
-/* =========================================================================
-   ИНСТРУКЦИЯ ПО ДЕПЛОЮ НА GITHUB PAGES
-   -------------------------------------------------------------------------
-   1. Создайте аккаунт на github.com (если ещё нет).
-   2. New repository → имя, например, schedule → Public → Create.
-   3. Add file → Upload files → загрузите index.html → Commit changes.
-   4. Settings → Pages → Source: Deploy from a branch.
-      Branch: main, папка: / (root) → Save.
-   5. Через 1–2 минуты страница будет доступна по адресу:
-        https://<ваш-логин>.github.io/<имя-репозитория>/
-   ========================================================================= */
 </script>
 </body>
 </html>
