@@ -18,6 +18,9 @@
     --warn-bg: #fff7ed;
     --warn-border: #fdba74;
     --warn-text: #c2410c;
+    --cancel-bg: #fef2f2;
+    --cancel-border: #fca5a5;
+    --cancel-text: #b91c1c;
     --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
   }
   *{ box-sizing: border-box; }
@@ -130,6 +133,17 @@
   }
   .lesson a:hover{ color: #1d4ed8; border-bottom-style: solid; }
 
+  /* Отменённая пара: зачёркнутое название + плашка «не проводится» */
+  .lesson.cancelled .title{
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+  .lesson.cancelled .teacher{
+    text-decoration: line-through;
+    opacity: .7;
+  }
+  .lesson.cancelled .time{ color: var(--muted); font-weight: 400; }
+
   .shift-note{
     display: inline-block;
     background: var(--warn-bg);
@@ -140,6 +154,26 @@
     font-weight: 600;
     padding: 2px 6px;
     border-radius: 4px;
+    margin-top: 2px;
+  }
+
+  .cancel-note{
+    display: inline-block;
+    background: var(--cancel-bg);
+    color: var(--cancel-text);
+    border: 1px solid var(--cancel-border);
+    border-left-width: 3px;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 4px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+  }
+  .cancel-hint{
+    font-size: .72rem;
+    color: var(--cancel-text);
     margin-top: 2px;
   }
 
@@ -199,7 +233,13 @@ const WEEK_OFFSET = 1; // текущая неделя — чётная
 /* =========================================================================
    3. ДАННЫЕ РАСПИСАНИЯ
    -------------------------------------------------------------------------
-   weeks: "all" | "even" | "odd"
+   weeks:   "all" | "even" | "odd"   — на каких неделях показывать пару
+   skipOn:  "even" | "odd" | null    — на каких неделях пара ОТМЕНЕНА
+                                        (карточка остаётся, но серым с плашкой)
+
+   Логика:
+     - если weeks = "all" и skipOn = "odd" → карточка есть всегда,
+       но на нечётной неделе она серая с пометкой «не проводится».
    ========================================================================= */
 const lessons = [
   /* ПОНЕДЕЛЬНИК */
@@ -230,9 +270,11 @@ const lessons = [
     teacher: "Еловой Сергей Григорьевич",
     url: "https://telemost.yandex.ru/j/09406274253983"
   },
-  // 8 пара — каждую неделю: ИСУ (лаб) Гордеев
+  // 8 пара — ИСУ (лаб) Гордеев.
+  // Показываем всегда, НО на нечётной неделе помечаем как «не проводится».
   {
     day: 2, pair: 8, weeks: "all",
+    skipOn: "odd",
     title: "Иерархические системы управления (лаб)",
     teacher: "Гордеев Александр Сергеевич",
     url: "https://telemost.yandex.ru/j/72466509162065"
@@ -324,10 +366,18 @@ function formatShortDate(d){
 function isEvenWeek(weekNumber){
   return (weekNumber + WEEK_OFFSET) % 2 === 0;
 }
+/** Видима ли вообще карточка пары (по полю weeks) */
 function isLessonVisible(lesson, even){
   if (lesson.weeks === "even") return even;
   if (lesson.weeks === "odd")  return !even;
   return true;
+}
+/** Отменена ли пара именно на этой неделе (по полю skipOn) */
+function isLessonCancelled(lesson, even){
+  if (!lesson.skipOn) return false;
+  if (lesson.skipOn === "even") return even;
+  if (lesson.skipOn === "odd")  return !even;
+  return false;
 }
 function escapeHtml(str){
   return String(str)
@@ -340,23 +390,21 @@ function escapeHtml(str){
 /* =========================================================================
    5. ВРЕМЯ ПАР — СПЕЦ-ЛОГИКА ДЛЯ ГОРДЕЕВА А.С.
    -------------------------------------------------------------------------
-   Сдвиг применяется ТОЛЬКО когда у Гордеева А.С. в один день стоят
-   две пары подряд (7 и 8). Тогда:
-       7 пара → 19:00–20:20
-       8 пара → 20:30–21:50
-   Во всех остальных случаях используется стандартное время из PAIR_TIMES.
+   Сдвиг применяется ТОЛЬКО когда у Гордеева в один день стоят
+   ДВЕ АКТИВНЫЕ пары подряд (7 и 8), т.е. когда 8-я не отменена.
+   Тогда:  7 → 19:00–20:20,  8 → 20:30–21:50.
    ========================================================================= */
 function getLessonTime(lesson, even){
-  // Смотрим, есть ли у Гордеева в этот же день и 7, и 8 видимые пары
   const gordeevToday = lessons.filter(l =>
     l.day === lesson.day &&
     l.teacher === GORDEEV &&
-    isLessonVisible(l, even)
+    isLessonVisible(l, even) &&
+    !isLessonCancelled(l, even)
   );
-  const hasGordeev7 = gordeevToday.some(l => l.pair === 7);
-  const hasGordeev8 = gordeevToday.some(l => l.pair === 8);
+  const has7 = gordeevToday.some(l => l.pair === 7);
+  const has8 = gordeevToday.some(l => l.pair === 8);
 
-  if (hasGordeev7 && hasGordeev8 && lesson.teacher === GORDEEV) {
+  if (has7 && has8 && lesson.teacher === GORDEEV) {
     if (lesson.pair === 7) return { start: "19:00", end: "20:20", shifted: true };
     if (lesson.pair === 8) return { start: "20:30", end: "21:50", shifted: true };
   }
@@ -440,18 +488,30 @@ function renderCalendar(){
         continue;
       }
 
-      cell.className = "lesson";
+      // Проверяем, все ли карточки в этой ячейке отменены
+      const allCancelled = dayLessons.every(l => isLessonCancelled(l, even));
+      cell.className = "lesson" + (allCancelled ? " cancelled" : "");
+
       dayLessons.forEach(l => {
         const block = document.createElement("div");
-        const timeInfo = getLessonTime(l, even);
+        const cancelled = isLessonCancelled(l, even);
+        const timeInfo = cancelled
+          ? (PAIR_TIMES[l.pair] || { start: "—", end: "—" })
+          : getLessonTime(l, even);
 
         let html = `<div class="title">${escapeHtml(l.title)}</div>`;
         if (l.teacher) html += `<div class="teacher">${escapeHtml(l.teacher)}</div>`;
         html += `<div class="time">${timeInfo.start}–${timeInfo.end}</div>`;
-        if (timeInfo.shifted) {
-          html += `<div class="shift-note">⏱ сдвиг: ${timeInfo.start}–${timeInfo.end}</div>`;
+
+        if (cancelled) {
+          html += `<div class="cancel-note">🚫 не проводится</div>`;
+          html += `<div class="cancel-hint">Встречаемся только по чётным неделям</div>`;
+        } else {
+          if (timeInfo.shifted) {
+            html += `<div class="shift-note">⏱ сдвиг: ${timeInfo.start}–${timeInfo.end}</div>`;
+          }
+          if (l.url) html += `<a href="${l.url}" target="_blank" rel="noopener">Подключиться</a>`;
         }
-        if (l.url) html += `<a href="${l.url}" target="_blank" rel="noopener">Подключиться</a>`;
 
         block.innerHTML = html;
         cell.appendChild(block);
